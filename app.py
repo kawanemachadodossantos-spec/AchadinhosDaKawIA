@@ -4,8 +4,8 @@ import time
 import requests
 from dotenv import load_dotenv
 
-# Aponta o caminho para o próprio diretório
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Adiciona o diretório do próprio app.py ao sys.path do Python
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from buscador import buscar_ofertas_mercadolivre, buscar_ofertas_shopee
 
