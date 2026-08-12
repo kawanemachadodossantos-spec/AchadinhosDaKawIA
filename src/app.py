@@ -1,7 +1,11 @@
 import os
+import sys
 import time
 import requests
 from dotenv import load_dotenv
+
+# Garante que o Python encontre os arquivos da mesma pasta
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from buscador import buscar_ofertas_mercadolivre, buscar_ofertas_shopee
 
