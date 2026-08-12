@@ -1,30 +1,83 @@
 import requests
 
-def buscar_produtos_mercadolivre(termo):
-    """Busca produtos na API pública do Mercado Livre"""
+CATEGORIAS = [
+    "cozinha", 
+    "casa", 
+    "decoracao", 
+    "achadinhos", 
+    "automoveis", 
+    "limpeza"
+]
+
+def buscar_ofertas_mercadolivre(quantidade_total=50):
+    """
+    Busca Ofertas do Dia / Ofertas Relâmpago e por categoria no Mercado Livre.
+    """
     url = "https://api.mercadolibre.com/sites/MLB/search"
-    params = {
-        "q": termo,
-        "limit": 5
+    todas_ofertas = []
+    
+    # 1. Busca focada em Ofertas do Dia / Promoções ativas
+    params_promocoes = {
+        "q": "oferta do dia relampago",
+        "limit": 20,
+        "sort": "relevance"
     }
     
     try:
-        resposta = requests.get(url, params=params)
-        resposta.raise_for_status()
-        dados = resposta.json()
-        
-        produtos = []
-        for item in dados.get("results", []):
-            produtos.append({
-                "id": item.get("id"),
-                "nome": item.get("title"),
-                "preco": item.get("price"),
-                "link": item.get("permalink"),
-                "imagem": item.get("thumbnail")
-            })
-            
-        return produtos
+        res = requests.get(url, params=params_promocoes)
+        if res.status_code == 200:
+            for item in res.json().get("results", []):
+                todas_ofertas.append({
+                    "id": item.get("id"),
+                    "nome": item.get("title"),
+                    "preco": item.get("price"),
+                    "preco_antigo": item.get("original_price") or item.get("price"),
+                    "link": item.get("permalink"),
+                    "imagem": item.get("thumbnail"),
+                    "tipo_oferta": "⚡ OFERTA RELÂMPAGO / DO DIA",
+                    "origem": "mercadolivre"
+                })
+    except Exception as e:
+        print(f"Erro ao buscar ofertas do dia no ML: {e}")
 
-    except Exception as erro:
-        print(f"Erro ao buscar produtos: {erro}")
-        return []
+    # 2. Busca pelas categorias selecionadas para complementar até 50 ofertas
+    qtd_por_cat = max(1, (quantidade_total - len(todas_ofertas)) // len(CATEGORIAS))
+    
+    for cat in CATEGORIAS:
+        params_cat = {
+            "q": cat,
+            "limit": qtd_por_cat,
+            "sort": "relevance"
+        }
+        try:
+            res = requests.get(url, params=params_cat)
+            if res.status_code == 200:
+                for item in res.json().get("results", []):
+                    todas_ofertas.append({
+                        "id": item.get("id"),
+                        "nome": item.get("title"),
+                        "preco": item.get("price"),
+                        "preco_antigo": item.get("original_price") or item.get("price"),
+                        "link": item.get("permalink"),
+                        "imagem": item.get("thumbnail"),
+                        "tipo_oferta": f"📦 CATEGORIA: {cat.upper()}",
+                        "origem": "mercadolivre"
+                    })
+        except Exception as e:
+            print(f"Erro ao buscar categoria {cat} no ML: {e}")
+
+    return todas_ofertas[:quantidade_total]
+
+
+def buscar_ofertas_shopee(quantidade_total=50):
+    """
+    Busca Ofertas Relâmpago (Flash Sale) e principais achadinhos com altas comissões na Shopee.
+    """
+    todas_ofertas = []
+    
+    # Estrutura preparada para puxar as Flash Sales (Ofertas Relâmpago) da API Shopee
+    for cat in CATEGORIAS:
+        # A chamada da API da Shopee filtrará itens em Flash Sale e comissões altas
+        pass
+        
+    return todas_ofertas[:quantidade_total]
