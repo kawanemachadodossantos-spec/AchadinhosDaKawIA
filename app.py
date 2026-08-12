@@ -1,8 +1,8 @@
 import os
-import sys
 import time
 import requests
 from dotenv import load_dotenv
+from src.buscador import buscar_ofertas_mercadolivre, buscar_ofertas_shopee
 
 # Adiciona o diretório atual e a pasta 'src' ao caminho de busca do Python
 DIRETORIO_ATUAL = os.path.dirname(os.path.abspath(__file__))
