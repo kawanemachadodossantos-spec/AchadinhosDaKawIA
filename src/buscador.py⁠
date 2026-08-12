@@ -1,0 +1,30 @@
+import requests
+
+def buscar_produtos_mercadolivre(termo):
+    """Busca produtos na API pública do Mercado Livre"""
+    url = "https://api.mercadolibre.com/sites/MLB/search"
+    params = {
+        "q": termo,
+        "limit": 5
+    }
+    
+    try:
+        resposta = requests.get(url, params=params)
+        resposta.raise_for_status()
+        dados = resposta.json()
+        
+        produtos = []
+        for item in dados.get("results", []):
+            produtos.append({
+                "id": item.get("id"),
+                "nome": item.get("title"),
+                "preco": item.get("price"),
+                "link": item.get("permalink"),
+                "imagem": item.get("thumbnail")
+            })
+            
+        return produtos
+
+    except Exception as erro:
+        print(f"Erro ao buscar produtos: {erro}")
+        return []
