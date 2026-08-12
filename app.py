@@ -2,7 +2,7 @@ import os
 import time
 import requests
 from dotenv import load_dotenv
-from src.buscador import buscar_ofertas_mercadolivre, buscar_ofertas_shopee
+from buscador import buscar_ofertas_mercadolivre, buscar_ofertas_shopee
 
 load_dotenv()
 
