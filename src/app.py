@@ -4,13 +4,10 @@ import time
 import requests
 from dotenv import load_dotenv
 
-# Adiciona a pasta atual ao caminho de modulos do Python
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Adiciona a pasta atual ao caminho de busca do Python
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-try:
-    from buscador import buscar_ofertas_mercadolivre, buscar_ofertas_shopee
-except ImportError:
-    from .buscador import buscar_ofertas_mercadolivre, buscar_ofertas_shopee
+from buscador import buscar_ofertas_mercadolivre, buscar_ofertas_shopee
 
 # Adiciona o diretório atual e a pasta 'src' ao caminho de busca do Python
 DIRETORIO_ATUAL = os.path.dirname(os.path.abspath(__file__))
