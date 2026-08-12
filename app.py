@@ -1,31 +1,28 @@
 import os
-import requests
 from dotenv import load_dotenv
+from src.buscador import buscar_produtos_mercadolivre
 
-# Carrega as variáveis do arquivo .env
+# Carrega as variáveis de ambiente
 load_dotenv()
 
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+def iniciar():
+    print("=================================")
+    print("       OFERTAS BOT (IA)")
+    print("=================================")
+    print("\nBuscando produtos no Mercado Livre...\n")
 
-def iniciar_bot():
-    print("=================================")
-    print("    ACHADINHOS DA KAW IA BOT")
-    print("=================================")
-    
-    if not TELEGRAM_BOT_TOKEN:
-        print("⚠️ Token do Telegram não configurado no arquivo .env!")
+    # Teste de busca por um termo de exemplo
+    produtos = buscar_produtos_mercadolivre("organizador de cozinha")
+
+    if not produtos:
+        print("Nenhum produto encontrado ou erro na busca.")
         return
 
-    # Teste de conexão com a API do Telegram
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getMe"
-    resposta = requests.get(url)
-
-    if resposta.status_code == 200:
-        dados = resposta.json()
-        nome_bot = dados.get("result", {}).get("first_name")
-        print(f"✅ Sucesso! Bot conectado: {nome_bot}")
-    else:
-        print("❌ Erro ao conectar com a API do Telegram. Verifique o Token.")
+    print(f"✅ Encontrados {len(produtos)} produtos:\n")
+    for index, produto in enumerate(produtos, start=1):
+        print(f"{index}. {produto['nome']}")
+        print(f"   Preço: R$ {produto['preco']}")
+        print(f"   Link: {produto['link']}\n")
 
 if __name__ == "__main__":
-    iniciar_bot()
+    iniciar()
