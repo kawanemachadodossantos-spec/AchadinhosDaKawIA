@@ -4,126 +4,81 @@ import time
 import requests
 from dotenv import load_dotenv
 
-# Adiciona a pasta atual ao caminho de busca do Python
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# 1. Garante que o Python encontre o buscador.py no servidor do PythonAnywhere
+PASTA_SRC = '/home/Kawane/bot/src'
+if PASTA_SRC not in sys.path:
+    sys.path.insert(0, PASTA_SRC)
 
+# Também adiciona o diretório atual como fallback
+DIRETORIO_ATUAL = os.path.dirname(os.path.abspath(__file__))
+if DIRETORIO_ATUAL not in sys.path:
+    sys.path.insert(0, DIRETORIO_ATUAL)
+
+# 2. Importação do buscador
 from buscador import buscar_ofertas_mercadolivre, buscar_ofertas_shopee
 
-# Adiciona o diretório atual e a pasta 'src' ao caminho de busca do Python
-DIRETORIO_ATUAL = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(DIRETORIO_ATUAL)
-sys.path.append(os.path.join(DIRETORIO_ATUAL, "src"))
-
-# Tenta importar com ou sem o namespace 'src' para evitar falhas no Render
-try:
-    from buscador import buscar_ofertas_mercadolivre, buscar_ofertas_shopee
-except ImportError:
-    from src.buscador import buscar_ofertas_mercadolivre, buscar_ofertas_shopee
-
+# 3. Carrega as variáveis do arquivo .env
 load_dotenv()
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-def formatar_mensagem_mercadolivre(produto, cupom=""):
-    """Gera o texto padronizado para ofertas do Mercado Livre"""
-    nome = produto.get("nome", "")
-    preco_antigo = produto.get("preco_antigo", produto.get("preco", 0))
-    preco_atual = produto.get("preco", 0)
-    link = produto.get("link", "")
-    
-    return (
-        "💥💥 *CUPOM DE DESCONTO* 💥💥\n\n"
-        f"🛍️ {nome}\n\n"
-        f"~De R$ {preco_antigo}~\n"
-        f"💥 *Por R$ {preco_atual}*\n\n"
-        f"🏷️ *Use o Cupom: * {cupom}\n\n"
-        f"🛒 Compre aqui 👉 {link}\n\n"
-        "⚠️ *Promoção sujeita à alteração de preço e estoque do site*\n\n"
-        "⚠️🚨 *ATENÇÃO: Valor promocional apenas utilizando o Cupom de Desconto*"
-    )
-
-def formatar_mensagem_shopee(produto, parcelamento="Em até 6x sem juros"):
-    """Gera o texto padronizado para ofertas da Shopee"""
-    nome = produto.get("nome", "")
-    preco_antigo = produto.get("preco_antigo", produto.get("preco", 0))
-    preco_atual = produto.get("preco", 0)
-    link = produto.get("link", "")
-    
-    return (
-        f"🛍️ {nome}\n\n"
-        f"~De R$ {preco_antigo}~\n"
-        f"🔥*Por R$ {preco_atual}*\n\n"
-        f"💳 {parcelamento}\n\n"
-        f"🛒 Compre aqui 👉 {link}\n\n"
-        "⚠️ *Preço e estoque sujeitos a alterações no site.*\n\n"
-        "⭐ *Oferta Exclusiva por Tempo Limitado!* Só para quem viu aqui 🤝\n\n"
-        "🎟️ *CUPONS DISPONÍVEIS AQUI:*\n"
-        "https://s.shopee.com.br/30mGe2PWLQ"
-    )
-
-def enviar_para_aprovacao(produto):
-    """Envia a oferta formatada para aprovação no Telegram"""
+def enviar_mensagem_telegram(mensagem):
+    """Envia uma mensagem de texto para o canal/grupo do Telegram."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("⚠️ Token ou Chat ID do Telegram não configurados!")
+        print("⚠️ Token do Telegram ou Chat ID não configurados no arquivo .env!")
         return
 
-    origem = produto.get("origem", "mercadolivre")
-    
-    if origem == "shopee":
-        mensagem_formatada = formatar_mensagem_shopee(produto)
-    else:
-        mensagem_formatada = formatar_mensagem_mercadolivre(produto)
-
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    
-    texto_revisao = (
-        f"🔎 <b>{produto.get('tipo_oferta', 'OFERTA ENCONTRADA')}</b>\n"
-        "-----------------------------------\n\n"
-        f"{mensagem_formatada}\n\n"
-        "-----------------------------------\n"
-        "<i>Deseja aprovar e enviar esta oferta?</i>"
-    )
-
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
-        "text": texto_revisao,
-        "reply_markup": {
-            "inline_keyboard": [
-                [
-                    {"text": "🟢 Aprovar", "callback_data": f"aprovar_{origem}_{produto['id']}"},
-                    {"text": "🔴 Rejeitar", "callback_data": f"rejeitar_{produto['id']}"}
-                ]
-            ]
-        }
+        "text": mensagem,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": False
     }
-
-    try:
-        requests.post(url, json=payload)
-        print(f"✅ Oferta enviada para aprovação: {produto['nome'][:30]}...")
-    except Exception as e:
-        print(f"❌ Erro ao enviar mensagem: {e}")
-
-def iniciar():
-    print("=================================")
-    print("   INICIANDO BUSCA DE 100 OFERTAS")
-    print("=================================")
     
-    # 1. Busca 50 ofertas do Mercado Livre
-    ofertas_ml = buscar_ofertas_mercadolivre(quantidade_total=50)
-    print(f"📦 Encontradas {len(ofertas_ml)} ofertas do Mercado Livre.")
+    try:
+        response = requests.post(url, json=payload)
+        if response.status_code == 200:
+            print("✅ Mensagem enviada com sucesso para o Telegram!")
+        else:
+            print(f"❌ Erro ao enviar mensagem ({response.status_code}): {response.text}")
+    except Exception as e:
+        print(f"❌ Erro de conexão ao enviar para o Telegram: {e}")
 
-    # 2. Busca 50 ofertas da Shopee
-    ofertas_shopee = buscar_ofertas_shopee(quantidade_total=50)
-    print(f"📦 Encontradas {len(ofertas_shopee)} ofertas da Shopee.")
+def executar_busca():
+    """Executa as buscas nos buscadores e envia os resultados."""
+    print("🔎 Iniciando busca por ofertas...")
+    
+    # Busca ofertas do Mercado Livre
+    try:
+        ofertas_ml = buscar_ofertas_mercadolivre()
+        if ofertas_ml:
+            print(f"📦 Encontradas {len(ofertas_ml)} ofertas no Mercado Livre.")
+            for oferta in ofertas_ml:
+                # Adapte os campos conforme o retorno da sua função no buscador.py
+                texto = f"🔥 <b>{oferta.get('titulo', 'Oferta')}</b>\n\n💰 Preço: {oferta.get('preco', 'Confira no site')}\n🔗 Link: {oferta.get('link', '')}"
+                enviar_mensagem_telegram(texto)
+                time.sleep(2) # Pausa rápida para não estourar limite de mensagens da API
+        else:
+            print("Nenhuma oferta encontrada no Mercado Livre.")
+    except Exception as e:
+        print(f"❌ Erro ao buscar ofertas do Mercado Livre: {e}")
 
-    # Junta todas as ofertas encontradas
-    todas_ofertas = ofertas_ml + ofertas_shopee
-
-    # Envia uma por uma para o seu painel de aprovação no Telegram
-    for produto in todas_ofertas:
-        enviar_para_aprovacao(produto)
-        time.sleep(1) # Pausa de 1 segundo para não sobrecarregar a API do Telegram
+    # Busca ofertas da Shopee
+    try:
+        ofertas_shopee = buscar_ofertas_shopee()
+        if ofertas_shopee:
+            print(f"📦 Encontradas {len(ofertas_shopee)} ofertas na Shopee.")
+            for oferta in ofertas_shopee:
+                texto = f"🛍️ <b>{oferta.get('titulo', 'Oferta Shopee')}</b>\n\n💰 Preço: {oferta.get('preco', 'Confira no site')}\n🔗 Link: {oferta.get('link', '')}"
+                enviar_mensagem_telegram(texto)
+                time.sleep(2)
+        else:
+            print("Nenhuma oferta encontrada na Shopee.")
+    except Exception as e:
+        print(f"❌ Erro ao buscar ofertas da Shopee: {e}")
 
 if __name__ == "__main__":
-    iniciar()
+    print("🚀 Bot Achadinhos iniciado com sucesso!")
+    executar_busca()
