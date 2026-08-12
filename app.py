@@ -1,7 +1,8 @@
 import os
+import time
 import requests
 from dotenv import load_dotenv
-from src.buscador import buscar_produtos_mercadolivre
+from src.buscador import buscar_ofertas_mercadolivre, buscar_ofertas_shopee
 
 load_dotenv()
 
@@ -15,7 +16,7 @@ def formatar_mensagem_mercadolivre(produto, cupom=""):
     preco_atual = produto.get("preco", 0)
     link = produto.get("link", "")
     
-    texto = (
+    return (
         "💥💥 *CUPOM DE DESCONTO* 💥💥\n\n"
         f"🛍️ {nome}\n\n"
         f"~De R$ {preco_antigo}~\n"
@@ -25,7 +26,6 @@ def formatar_mensagem_mercadolivre(produto, cupom=""):
         "⚠️ *Promoção sujeita à alteração de preço e estoque do site*\n\n"
         "⚠️🚨 *ATENÇÃO: Valor promocional apenas utilizando o Cupom de Desconto*"
     )
-    return texto
 
 def formatar_mensagem_shopee(produto, parcelamento="Em até 6x sem juros"):
     """Gera o texto padronizado para ofertas da Shopee"""
@@ -34,7 +34,7 @@ def formatar_mensagem_shopee(produto, parcelamento="Em até 6x sem juros"):
     preco_atual = produto.get("preco", 0)
     link = produto.get("link", "")
     
-    texto = (
+    return (
         f"🛍️ {nome}\n\n"
         f"~De R$ {preco_antigo}~\n"
         f"🔥*Por R$ {preco_atual}*\n\n"
@@ -45,15 +45,15 @@ def formatar_mensagem_shopee(produto, parcelamento="Em até 6x sem juros"):
         "🎟️ *CUPONS DISPONÍVEIS AQUI:*\n"
         "https://s.shopee.com.br/30mGe2PWLQ"
     )
-    return texto
 
-def enviar_para_aprovacao(produto, origem="mercadolivre"):
-    """Envia a oferta para o seu Telegram privado para você aprovar ou rejeitar"""
+def enviar_para_aprovacao(produto):
+    """Envia a oferta formatada para aprovação no Telegram"""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("⚠️ Token ou Chat ID do Telegram não configurados!")
         return
 
-    # Gera a prévia da mensagem final formatada
+    origem = produto.get("origem", "mercadolivre")
+    
     if origem == "shopee":
         mensagem_formatada = formatar_mensagem_shopee(produto)
     else:
@@ -62,11 +62,11 @@ def enviar_para_aprovacao(produto, origem="mercadolivre"):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     
     texto_revisao = (
-        f"🔎 <b>NOVA OFERTA ENCONTRADA ({origem.upper()})</b>\n"
+        f"🔎 <b>{produto.get('tipo_oferta', 'OFERTA ENCONTRADA')}</b>\n"
         "-----------------------------------\n\n"
         f"{mensagem_formatada}\n\n"
         "-----------------------------------\n"
-        "<i>Deseja aprovar e enviar esta oferta formatada?</i>"
+        "<i>Deseja aprovar e enviar esta oferta?</i>"
     )
 
     payload = {
@@ -82,21 +82,32 @@ def enviar_para_aprovacao(produto, origem="mercadolivre"):
         }
     }
 
-    resposta = requests.post(url, json=payload)
-    if resposta.status_code == 200:
-        print("✅ Oferta enviada para sua aprovação no Telegram!")
-    else:
-        print(f"❌ Erro ao enviar mensagem: {resposta.text}")
+    try:
+        requests.post(url, json=payload)
+        print(f"✅ Oferta enviada para aprovação: {produto['nome'][:30]}...")
+    except Exception as e:
+        print(f"❌ Erro ao enviar mensagem: {e}")
 
 def iniciar():
     print("=================================")
-    print("   SISTEMA DE PAINEL DE APROVAÇÃO")
+    print("   INICIANDO BUSCA DE 100 OFERTAS")
     print("=================================")
     
-    # Exemplo testando busca no Mercado Livre
-    produtos = buscar_produtos_mercadolivre("organizador de cozinha")
-    if produtos:
-        enviar_para_aprovacao(produtos[0], origem="mercadolivre")
+    # 1. Busca 50 ofertas do Mercado Livre
+    ofertas_ml = buscar_ofertas_mercadolivre(quantidade_total=50)
+    print(f"📦 Encontradas {len(ofertas_ml)} ofertas do Mercado Livre.")
+
+    # 2. Busca 50 ofertas da Shopee
+    ofertas_shopee = buscar_ofertas_shopee(quantidade_total=50)
+    print(f"📦 Encontradas {len(ofertas_shopee)} ofertas da Shopee.")
+
+    # Junta todas as ofertas encontradas
+    todas_ofertas = ofertas_ml + ofertas_shopee
+
+    # Envia uma por uma para o seu painel de aprovação no Telegram
+    for produto in todas_ofertas:
+        enviar_para_aprovacao(produto)
+        time.sleep(1) # Pausa de 1 segundo para não sobrecarregar a API do Telegram
 
 if __name__ == "__main__":
     iniciar()
